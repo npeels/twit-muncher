@@ -25,14 +25,7 @@
                 <span class="tweet-time">{{ tweet.published_at[:16] }}</span>
                 {% endif %}
             </div>
-            <div class="tweet-content">{{ tweet.content_text }}</div>
-            {% if tweet.media_urls %}
-            <div class="tweet-media">
-                {% for url in tweet.media_urls %}
-                <img src="{{ url }}" alt="media" loading="lazy">
-                {% endfor %}
-            </div>
-            {% endif %}
+            <div class="tweet-content">{{ tweet.content | safe if tweet.content else tweet.content_text }}</div>
             <div class="tweet-footer">
                 {% if tweet.tweet_url %}
                 <a href="{{ tweet.tweet_url }}" target="_blank" class="tweet-link">View tweet</a>
@@ -88,15 +81,30 @@
             const resp = await fetch(`/api/briefings/${briefingId}/tweets?category=skip`);
             const tweets = await resp.json();
             container.innerHTML = tweets.map(t => renderTweet(t)).join('');
+            initSkipTweetExpands(container);
         } catch (e) {
             container.innerHTML = '<div class="error">Failed to load tweets</div>';
         }
     }
 
+    function initExpandCollapse(el) {
+        if (el.textContent.trim().length > 200) {
+            el.classList.add('collapsed');
+            const btn = document.createElement('button');
+            btn.className = 'tweet-expand';
+            btn.textContent = 'Show more';
+            btn.onclick = () => {
+                el.classList.toggle('collapsed');
+                btn.textContent = el.classList.contains('collapsed') ? 'Show more' : 'Show less';
+            };
+            el.after(btn);
+        }
+    }
+
+    document.querySelectorAll('.tweet-content').forEach(initExpandCollapse);
+
     function renderTweet(t) {
-        const mediaHtml = (t.media_urls || []).map(u =>
-            `<img src="${u}" alt="media" loading="lazy">`
-        ).join('');
+        const contentHtml = t.content || t.content_text || '';
         const catOptions = categories.map(c =>
             `<option value="${c.key}" ${c.key === t.category ? 'selected' : ''}>${c.label}</option>`
         ).join('');
@@ -106,8 +114,7 @@
                 <a href="https://twitter.com/${t.author}" class="tweet-author" target="_blank">@${t.author}</a>
                 ${t.published_at ? `<span class="tweet-time">${t.published_at.slice(0,16)}</span>` : ''}
             </div>
-            <div class="tweet-content">${t.content_text || ''}</div>
-            ${mediaHtml ? `<div class="tweet-media">${mediaHtml}</div>` : ''}
+            <div class="tweet-content">${contentHtml}</div>
             <div class="tweet-footer">
                 ${t.tweet_url ? `<a href="${t.tweet_url}" target="_blank" class="tweet-link">View tweet</a>` : ''}
                 ${t.category_reason ? `<span class="tweet-reason">${t.category_reason.slice(0,60)}</span>` : ''}
@@ -117,6 +124,10 @@
                 </select>
             </div>
         </div>`;
+    }
+
+    function initSkipTweetExpands(container) {
+        container.querySelectorAll('.tweet-content').forEach(initExpandCollapse);
     }
 </script>
 {% endblock %}
