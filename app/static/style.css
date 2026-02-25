@@ -285,3 +285,11 @@ input[type="color"] { width: 40px; height: 30px; border: 1px solid var(--border)
 
 .loading { text-align: center; padding: 1rem; color: var(--text-secondary); }
 .error { text-align: center; padding: 1rem; color: var(--danger); }
+
+.login-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 2rem;
+}
