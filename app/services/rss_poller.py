@@ -1,6 +1,7 @@
 import json
 import logging
 from datetime import datetime, timezone
+from time import mktime
 
 import feedparser
 import httpx
@@ -12,70 +13,82 @@ from app.services.classifier import classify_tweets
 logger = logging.getLogger(__name__)
 
 
-async def fetch_feed(handle: str) -> list[dict]:
-    url = f"{settings.rsshub_base_url}/twitter/user/{handle}"
-    async with httpx.AsyncClient(timeout=30) as client:
+def _parse_author(entry: dict) -> str:
+    """Extract Twitter handle from a feed entry."""
+    # feedparser puts author in author_detail.name or author field
+    author = ""
+    if hasattr(entry, "author_detail") and entry.author_detail.get("name"):
+        author = entry.author_detail["name"]
+    elif entry.get("author"):
+        author = entry["author"]
+
+    # Strip leading @ and whitespace
+    return author.lstrip("@").strip()
+
+
+def _parse_entry(entry, fallback_author: str = "") -> dict:
+    tweet_id = entry.get("id") or entry.get("link", "")
+    content_html = entry.get("summary", "") or entry.get("description", "")
+    content_text = entry.get("title", "")
+
+    author = _parse_author(entry) or fallback_author
+
+    media_urls = []
+    for enc in entry.get("enclosures", []):
+        if enc.get("href"):
+            media_urls.append(enc["href"])
+
+    published = entry.get("published_parsed")
+    published_at = None
+    if published:
+        published_at = datetime.fromtimestamp(
+            mktime(published), tz=timezone.utc
+        ).isoformat()
+
+    return {
+        "id": tweet_id,
+        "author": author,
+        "content": content_html,
+        "content_text": content_text,
+        "media_urls": json.dumps(media_urls),
+        "tweet_url": entry.get("link", ""),
+        "published_at": published_at,
+    }
+
+
+async def fetch_list_feed(list_id: str) -> list[dict]:
+    url = f"{settings.rsshub_base_url}/twitter/list/{list_id}"
+    async with httpx.AsyncClient(timeout=30, follow_redirects=False) as client:
         try:
             resp = await client.get(url)
+            if resp.status_code in (301, 302, 307, 308):
+                logger.error(f"List feed {list_id} redirected to {resp.headers.get('location')} — check RSSHUB_BASE_URL")
+                return []
             resp.raise_for_status()
         except httpx.HTTPError as e:
-            logger.error(f"Failed to fetch feed for @{handle}: {e}")
+            logger.error(f"Failed to fetch list feed {list_id}: {e}")
             return []
 
     feed = feedparser.parse(resp.text)
-    tweets = []
-    for entry in feed.entries:
-        tweet_id = entry.get("id") or entry.get("link", "")
-        content_html = entry.get("summary", "") or entry.get("description", "")
-        content_text = entry.get("title", "")
+    if not feed.entries:
+        logger.warning(f"List feed {list_id} returned no entries. Feed title: {feed.feed.get('title', 'unknown')}")
+        return []
 
-        # Extract media URLs from enclosures
-        media_urls = []
-        for enc in entry.get("enclosures", []):
-            if enc.get("href"):
-                media_urls.append(enc["href"])
-
-        # Parse published date
-        published = entry.get("published_parsed")
-        published_at = None
-        if published:
-            from time import mktime
-            published_at = datetime.fromtimestamp(
-                mktime(published), tz=timezone.utc
-            ).isoformat()
-
-        tweets.append({
-            "id": tweet_id,
-            "author": handle,
-            "content": content_html,
-            "content_text": content_text,
-            "media_urls": json.dumps(media_urls),
-            "tweet_url": entry.get("link", ""),
-            "published_at": published_at,
-        })
+    tweets = [_parse_entry(e) for e in feed.entries]
+    logger.info(f"Fetched {len(tweets)} entries from list {list_id}")
     return tweets
 
 
 async def poll_feeds() -> list[dict]:
-    db = await get_db()
+    list_ids = await get_setting("twitter_list_ids") or []
 
-    # Get all unique authors from existing tweets + must_read_accounts
-    must_read = await get_setting("must_read_accounts") or []
-    must_read_handles = {a["handle"].lower().lstrip("@") for a in must_read}
-
-    # Get handles we already track (from existing tweets)
-    rows = await db.execute_fetchall("SELECT DISTINCT author FROM tweets")
-    known_handles = {row[0].lower() for row in rows}
-
-    all_handles = known_handles | must_read_handles
-
-    if not all_handles:
-        logger.info("No handles to poll. Add must_read_accounts in settings.")
+    if not list_ids:
+        logger.info("No twitter_list_ids configured. Add list IDs in Settings > Advanced.")
         return []
 
     all_tweets = []
-    for handle in all_handles:
-        tweets = await fetch_feed(handle)
+    for list_id in list_ids:
+        tweets = await fetch_list_feed(list_id)
         all_tweets.extend(tweets)
 
     return all_tweets

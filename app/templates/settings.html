@@ -77,6 +77,15 @@
 <div id="tab-advanced" class="tab-panel">
     <h2>Advanced Settings</h2>
     <div class="form-group">
+        <label>Twitter List IDs</label>
+        <p class="help-text">RSSHub list IDs to poll (numeric Twitter list IDs).</p>
+        <div id="list-ids-list"></div>
+        <div class="add-row">
+            <input type="text" id="new-list-id" placeholder="e.g. 2026289137762898094">
+            <button class="btn btn-sm" onclick="addListId()">Add</button>
+        </div>
+    </div>
+    <div class="form-group">
         <label for="poll-interval">Poll Interval (minutes)</label>
         <input type="number" id="poll-interval" min="1" max="1440">
         <button class="btn btn-sm" onclick="savePollInterval()">Save</button>
@@ -251,11 +260,42 @@
         else showToast('Failed to save', true);
     }
 
+    function renderListIds() {
+        const ids = currentSettings.twitter_list_ids || [];
+        const container = document.getElementById('list-ids-list');
+        container.innerHTML = ids.map((id, i) => `
+            <div class="time-row">
+                <span>${id}</span>
+                <button class="btn btn-sm btn-danger" onclick="removeListId(${i})">Remove</button>
+            </div>
+        `).join('') || '<div class="empty-state">No list IDs configured.</div>';
+    }
+
+    async function addListId() {
+        const id = document.getElementById('new-list-id').value.trim();
+        if (!id) return;
+        const ids = currentSettings.twitter_list_ids || [];
+        if (!ids.includes(id)) {
+            ids.push(id);
+            await saveSetting('twitter_list_ids', ids);
+        }
+        document.getElementById('new-list-id').value = '';
+        renderListIds();
+    }
+
+    async function removeListId(idx) {
+        const ids = currentSettings.twitter_list_ids || [];
+        ids.splice(idx, 1);
+        await saveSetting('twitter_list_ids', ids);
+        renderListIds();
+    }
+
     // Initialize
     renderMustReadList();
     renderBriefingTimes();
     renderDays();
     renderCategories();
+    renderListIds();
     document.getElementById('classification-prompt').value = currentSettings.classification_prompt || '';
     document.getElementById('poll-interval').value = currentSettings.poll_interval_minutes || 12;
     document.getElementById('gemini-model').value = currentSettings.gemini_model || 'gemini-2.5-flash';

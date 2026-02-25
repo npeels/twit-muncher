@@ -84,6 +84,7 @@ def generate_classification_prompt(categories: list[dict]) -> str:
 
 
 DEFAULT_SETTINGS = {
+    "twitter_list_ids": ["2026289137762898094"],
     "must_read_accounts": [],
     "briefing_times": ["09:00", "16:00"],
     "briefing_days": ["mon", "tue", "wed", "thu", "fri"],
