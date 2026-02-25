@@ -1,0 +1,19 @@
+services:
+  twit-muncher:
+    build: .
+    container_name: twit-muncher
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./data:/app/data
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.twit-muncher.rule=Host(`twits.zoidspace.com`)"
+      - "traefik.http.routers.twit-muncher.entrypoints=web"
+      - "traefik.http.services.twit-muncher.loadbalancer.server.port=8000"
+    networks:
+      - proxy
+
+networks:
+  proxy:
+    external: true

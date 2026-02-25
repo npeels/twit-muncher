@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Briefings - Twit Muncher{% endblock %}
+{% block content %}
+<h1>Briefings</h1>
+{% if briefings %}
+<div class="briefing-list">
+    {% for b in briefings %}
+    <a href="/briefings/{{ b.id }}" class="briefing-card">
+        <div class="briefing-card-header">
+            <span class="briefing-id">#{{ b.id }}</span>
+            <span class="briefing-date">{{ b.generated_at[:16] }}</span>
+        </div>
+        <div class="briefing-meta">
+            {{ b.tweet_count }} tweets
+            {% if b.period_start and b.period_end %}
+            &middot; {{ b.period_start[:10] }} to {{ b.period_end[:10] }}
+            {% endif %}
+        </div>
+    </a>
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+    <p>No briefings yet. Click <strong>Generate Briefing</strong> after polling some tweets.</p>
+</div>
+{% endif %}
+{% endblock %}

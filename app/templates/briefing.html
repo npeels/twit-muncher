@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% block title %}Briefing #{{ briefing.id }} - Twit Muncher{% endblock %}
+{% block content %}
+<div class="briefing-header">
+    <h1>Briefing #{{ briefing.id }}</h1>
+    <div class="briefing-meta">
+        Generated {{ briefing.generated_at[:16] }} &middot; {{ briefing.tweet_count }} tweets
+    </div>
+</div>
+
+{% for cat_key, group in groups %}
+<details class="category-section" {% if group.info.expanded_by_default %}open{% endif %}>
+    <summary>
+        <span class="category-badge" style="background: {{ group.info.color }}">
+            {{ group.info.label }}
+        </span>
+        <span class="tweet-count">{{ group.tweets|length }}</span>
+    </summary>
+    <div class="tweet-list">
+        {% for tweet in group.tweets %}
+        <div class="tweet-card" data-tweet-id="{{ tweet.id }}">
+            <div class="tweet-header">
+                <a href="https://twitter.com/{{ tweet.author }}" class="tweet-author" target="_blank">@{{ tweet.author }}</a>
+                {% if tweet.published_at %}
+                <span class="tweet-time">{{ tweet.published_at[:16] }}</span>
+                {% endif %}
+            </div>
+            <div class="tweet-content">{{ tweet.content_text }}</div>
+            {% if tweet.media_urls %}
+            <div class="tweet-media">
+                {% for url in tweet.media_urls %}
+                <img src="{{ url }}" alt="media" loading="lazy">
+                {% endfor %}
+            </div>
+            {% endif %}
+            <div class="tweet-footer">
+                {% if tweet.tweet_url %}
+                <a href="{{ tweet.tweet_url }}" target="_blank" class="tweet-link">View tweet</a>
+                {% endif %}
+                {% if tweet.category_reason %}
+                <span class="tweet-reason" title="{{ tweet.category_reason }}">{{ tweet.category_reason[:60] }}</span>
+                {% endif %}
+                <select class="reclassify-select" onchange="reclassifyTweet('{{ tweet.id }}', this.value)">
+                    <option value="">Reclassify...</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat.key }}" {% if cat.key == tweet.category %}selected{% endif %}>{{ cat.label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</details>
+{% endfor %}
+
+{% if skip_count > 0 %}
+<details class="category-section" id="skip-section">
+    <summary>
+        <span class="category-badge" style="background: #95a5a6">Skip</span>
+        <span class="tweet-count">{{ skip_count }}</span>
+    </summary>
+    <div class="tweet-list" id="skip-tweets">
+        <div class="loading">Loading skipped tweets...</div>
+    </div>
+</details>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const briefingId = {{ briefing.id }};
+    const categories = {{ categories | tojson }};
+
+    const skipSection = document.getElementById('skip-section');
+    if (skipSection) {
+        let loaded = false;
+        skipSection.addEventListener('toggle', async () => {
+            if (skipSection.open && !loaded) {
+                loaded = true;
+                await loadSkipTweets();
+            }
+        });
+    }
+
+    async function loadSkipTweets() {
+        const container = document.getElementById('skip-tweets');
+        try {
+            const resp = await fetch(`/api/briefings/${briefingId}/tweets?category=skip`);
+            const tweets = await resp.json();
+            container.innerHTML = tweets.map(t => renderTweet(t)).join('');
+        } catch (e) {
+            container.innerHTML = '<div class="error">Failed to load tweets</div>';
+        }
+    }
+
+    function renderTweet(t) {
+        const mediaHtml = (t.media_urls || []).map(u =>
+            `<img src="${u}" alt="media" loading="lazy">`
+        ).join('');
+        const catOptions = categories.map(c =>
+            `<option value="${c.key}" ${c.key === t.category ? 'selected' : ''}>${c.label}</option>`
+        ).join('');
+        return `
+        <div class="tweet-card" data-tweet-id="${t.id}">
+            <div class="tweet-header">
+                <a href="https://twitter.com/${t.author}" class="tweet-author" target="_blank">@${t.author}</a>
+                ${t.published_at ? `<span class="tweet-time">${t.published_at.slice(0,16)}</span>` : ''}
+            </div>
+            <div class="tweet-content">${t.content_text || ''}</div>
+            ${mediaHtml ? `<div class="tweet-media">${mediaHtml}</div>` : ''}
+            <div class="tweet-footer">
+                ${t.tweet_url ? `<a href="${t.tweet_url}" target="_blank" class="tweet-link">View tweet</a>` : ''}
+                ${t.category_reason ? `<span class="tweet-reason">${t.category_reason.slice(0,60)}</span>` : ''}
+                <select class="reclassify-select" onchange="reclassifyTweet('${t.id}', this.value)">
+                    <option value="">Reclassify...</option>
+                    ${catOptions}
+                </select>
+            </div>
+        </div>`;
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,263 @@
+{% extends "base.html" %}
+{% block title %}Settings - Twit Muncher{% endblock %}
+{% block content %}
+<h1>Settings</h1>
+
+<div class="tabs">
+    <button class="tab active" onclick="switchTab('must-read')">Must-Read Accounts</button>
+    <button class="tab" onclick="switchTab('schedule')">Schedule</button>
+    <button class="tab" onclick="switchTab('categories')">Categories</button>
+    <button class="tab" onclick="switchTab('prompt')">Classification Prompt</button>
+    <button class="tab" onclick="switchTab('advanced')">Advanced</button>
+</div>
+
+<div id="tab-must-read" class="tab-panel active">
+    <h2>Must-Read Accounts</h2>
+    <p class="help-text">These accounts always appear in briefings regardless of content classification.</p>
+    <div id="must-read-list"></div>
+    <div class="add-row">
+        <input type="text" id="new-handle" placeholder="@handle">
+        <input type="text" id="new-notes" placeholder="Notes (optional)">
+        <button class="btn btn-sm" onclick="addMustRead()">Add</button>
+    </div>
+</div>
+
+<div id="tab-schedule" class="tab-panel">
+    <h2>Briefing Schedule</h2>
+    <div class="form-group">
+        <label>Briefing Times</label>
+        <div id="briefing-times-list"></div>
+        <div class="add-row">
+            <input type="time" id="new-time" value="09:00">
+            <button class="btn btn-sm" onclick="addBriefingTime()">Add Time</button>
+        </div>
+    </div>
+    <div class="form-group">
+        <label>Active Days</label>
+        <div id="briefing-days" class="day-grid">
+            {% for day in ["mon","tue","wed","thu","fri","sat","sun"] %}
+            <label class="day-toggle">
+                <input type="checkbox" value="{{ day }}" onchange="saveDays()">
+                {{ day|upper }}
+            </label>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<div id="tab-categories" class="tab-panel">
+    <h2>Categories</h2>
+    <p class="help-text">Define categories for tweet classification. Changes propagate to the classification prompt.</p>
+    <table class="cat-table" id="categories-table">
+        <thead>
+            <tr>
+                <th>Key</th>
+                <th>Label</th>
+                <th>Color</th>
+                <th>Expanded</th>
+                <th>LLM Description</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody id="categories-body"></tbody>
+    </table>
+    <button class="btn btn-sm" onclick="addCategory()">Add Category</button>
+</div>
+
+<div id="tab-prompt" class="tab-panel">
+    <h2>Classification Prompt</h2>
+    <p class="help-text">This prompt is sent to Gemini for tweet classification. Edit to fine-tune behavior.</p>
+    <textarea id="classification-prompt" rows="20"></textarea>
+    <div class="btn-group">
+        <button class="btn" onclick="savePrompt()">Save Prompt</button>
+        <button class="btn btn-secondary" onclick="resetPrompt()">Reset to Default</button>
+    </div>
+</div>
+
+<div id="tab-advanced" class="tab-panel">
+    <h2>Advanced Settings</h2>
+    <div class="form-group">
+        <label for="poll-interval">Poll Interval (minutes)</label>
+        <input type="number" id="poll-interval" min="1" max="1440">
+        <button class="btn btn-sm" onclick="savePollInterval()">Save</button>
+    </div>
+    <div class="form-group">
+        <label for="gemini-model">Gemini Model</label>
+        <input type="text" id="gemini-model" placeholder="gemini-2.5-flash">
+        <button class="btn btn-sm" onclick="saveGeminiModel()">Save</button>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let currentSettings = {{ settings | tojson }};
+
+    function switchTab(name) {
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.getElementById('tab-' + name).classList.add('active');
+        event.target.classList.add('active');
+    }
+
+    function renderMustReadList() {
+        const list = currentSettings.must_read_accounts || [];
+        const container = document.getElementById('must-read-list');
+        container.innerHTML = list.map((a, i) => `
+            <div class="must-read-row">
+                <span class="handle">@${a.handle}</span>
+                <span class="notes">${a.notes || ''}</span>
+                <button class="btn btn-sm btn-danger" onclick="removeMustRead(${i})">Remove</button>
+            </div>
+        `).join('') || '<div class="empty-state">No must-read accounts configured.</div>';
+    }
+
+    async function addMustRead() {
+        const handle = document.getElementById('new-handle').value.trim().replace(/^@/, '');
+        const notes = document.getElementById('new-notes').value.trim();
+        if (!handle) return;
+        const list = currentSettings.must_read_accounts || [];
+        list.push({handle, notes});
+        await saveSetting('must_read_accounts', list);
+        document.getElementById('new-handle').value = '';
+        document.getElementById('new-notes').value = '';
+        renderMustReadList();
+    }
+
+    async function removeMustRead(idx) {
+        const list = currentSettings.must_read_accounts || [];
+        list.splice(idx, 1);
+        await saveSetting('must_read_accounts', list);
+        renderMustReadList();
+    }
+
+    function renderBriefingTimes() {
+        const times = currentSettings.briefing_times || [];
+        const container = document.getElementById('briefing-times-list');
+        container.innerHTML = times.map((t, i) => `
+            <div class="time-row">
+                <span>${t}</span>
+                <button class="btn btn-sm btn-danger" onclick="removeBriefingTime(${i})">Remove</button>
+            </div>
+        `).join('') || '<div class="empty-state">No briefing times configured.</div>';
+    }
+
+    async function addBriefingTime() {
+        const time = document.getElementById('new-time').value;
+        if (!time) return;
+        const times = currentSettings.briefing_times || [];
+        if (!times.includes(time)) {
+            times.push(time);
+            times.sort();
+            await saveSetting('briefing_times', times);
+        }
+        renderBriefingTimes();
+    }
+
+    async function removeBriefingTime(idx) {
+        const times = currentSettings.briefing_times || [];
+        times.splice(idx, 1);
+        await saveSetting('briefing_times', times);
+        renderBriefingTimes();
+    }
+
+    function renderDays() {
+        const days = currentSettings.briefing_days || [];
+        document.querySelectorAll('#briefing-days input').forEach(cb => {
+            cb.checked = days.includes(cb.value);
+        });
+    }
+
+    async function saveDays() {
+        const days = Array.from(document.querySelectorAll('#briefing-days input:checked'))
+            .map(cb => cb.value);
+        await saveSetting('briefing_days', days);
+    }
+
+    function renderCategories() {
+        const cats = currentSettings.categories || [];
+        const tbody = document.getElementById('categories-body');
+        tbody.innerHTML = cats.map((c, i) => `
+            <tr>
+                <td><input type="text" value="${c.key}" onchange="updateCategory(${i}, 'key', this.value)"></td>
+                <td><input type="text" value="${c.label}" onchange="updateCategory(${i}, 'label', this.value)"></td>
+                <td><input type="color" value="${c.color}" onchange="updateCategory(${i}, 'color', this.value)"></td>
+                <td><input type="checkbox" ${c.expanded_by_default ? 'checked' : ''} onchange="updateCategory(${i}, 'expanded_by_default', this.checked)"></td>
+                <td><input type="text" value="${c.description_for_llm}" onchange="updateCategory(${i}, 'description_for_llm', this.value)"></td>
+                <td><button class="btn btn-sm btn-danger" onclick="removeCategory(${i})">X</button></td>
+            </tr>
+        `).join('');
+    }
+
+    async function updateCategory(idx, field, value) {
+        const cats = currentSettings.categories || [];
+        cats[idx][field] = value;
+        await saveSetting('categories', cats);
+    }
+
+    async function addCategory() {
+        const cats = currentSettings.categories || [];
+        cats.push({
+            key: 'new_category',
+            label: 'New Category',
+            color: '#888888',
+            expanded_by_default: true,
+            description_for_llm: 'Description for the LLM'
+        });
+        await saveSetting('categories', cats);
+        renderCategories();
+    }
+
+    async function removeCategory(idx) {
+        const cats = currentSettings.categories || [];
+        cats.splice(idx, 1);
+        await saveSetting('categories', cats);
+        renderCategories();
+    }
+
+    async function savePrompt() {
+        const prompt = document.getElementById('classification-prompt').value;
+        await saveSetting('classification_prompt', prompt);
+    }
+
+    async function resetPrompt() {
+        const resp = await fetch('/api/settings/reset-prompt', {method: 'POST'});
+        const data = await resp.json();
+        if (data.prompt) {
+            document.getElementById('classification-prompt').value = data.prompt;
+            currentSettings.classification_prompt = data.prompt;
+            showToast('Prompt reset to default');
+        }
+    }
+
+    async function savePollInterval() {
+        const val = parseInt(document.getElementById('poll-interval').value);
+        if (val > 0) await saveSetting('poll_interval_minutes', val);
+    }
+
+    async function saveGeminiModel() {
+        const val = document.getElementById('gemini-model').value.trim();
+        if (val) await saveSetting('gemini_model', val);
+    }
+
+    async function saveSetting(key, value) {
+        currentSettings[key] = value;
+        const resp = await fetch('/api/settings', {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({[key]: value})
+        });
+        if (resp.ok) showToast('Saved');
+        else showToast('Failed to save', true);
+    }
+
+    // Initialize
+    renderMustReadList();
+    renderBriefingTimes();
+    renderDays();
+    renderCategories();
+    document.getElementById('classification-prompt').value = currentSettings.classification_prompt || '';
+    document.getElementById('poll-interval').value = currentSettings.poll_interval_minutes || 12;
+    document.getElementById('gemini-model').value = currentSettings.gemini_model || 'gemini-2.5-flash';
+</script>
+{% endblock %}
