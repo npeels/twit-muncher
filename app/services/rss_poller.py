@@ -135,14 +135,17 @@ async def tag_must_reads():
     if not must_read_handles:
         return
 
-    placeholders = ",".join("?" for _ in must_read_handles)
-    await db.execute(
-        f"""UPDATE tweets SET category = 'must_read', confidence = 1.0,
-            category_reason = 'Must-read account'
-            WHERE LOWER(author) IN ({placeholders})
-            AND category IS NULL AND briefing_id IS NULL""",
-        must_read_handles,
-    )
+    # Match by author field (display name) OR by tweet_url which contains the handle.
+    # The author field in RSS feeds is often the display name (e.g. "Ram Ahluwalia CFA, Lumida")
+    # while the tweet URL always contains the actual handle (e.g. ".../ramahluwalia/status/...").
+    for handle in must_read_handles:
+        await db.execute(
+            """UPDATE tweets SET category = 'must_read', confidence = 1.0,
+                category_reason = 'Must-read account'
+                WHERE (LOWER(author) = ? OR tweet_url LIKE ?)
+                AND category IS NULL AND briefing_id IS NULL""",
+            (handle, f"%/{handle}/status/%"),
+        )
     await db.commit()
 
 
