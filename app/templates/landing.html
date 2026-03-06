@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Twit Muncher</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="login-container">
+        <div class="card" style="text-align: center; max-width: 420px; width: 100%;">
+            <h1 style="margin-bottom: 8px;">Twit Muncher</h1>
+            <p class="text-muted" style="margin-bottom: 24px;">
+                Your personal Twitter/X digest &mdash; AI-powered highlights from the accounts you follow.
+            </p>
+            {% if error %}
+            <p style="color: var(--color-danger, #c00); margin-bottom: 16px;">Access denied.</p>
+            {% endif %}
+            <a href="/login/google" class="btn btn-primary" style="width: 100%; justify-content: center;">
+                Sign in with Google
+            </a>
+        </div>
+    </div>
+</body>
+</html>
