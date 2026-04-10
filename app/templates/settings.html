@@ -92,8 +92,17 @@
     </div>
     <div class="form-group">
         <label for="gemini-model">Gemini Model</label>
-        <input type="text" id="gemini-model" placeholder="gemini-2.5-flash">
-        <button class="btn btn-sm" onclick="saveGeminiModel()">Save</button>
+        <div class="input-with-btn">
+            <input type="text" id="gemini-model" placeholder="gemini-2.5-flash">
+            <button class="btn btn-sm" onclick="saveGeminiModel()">Save</button>
+        </div>
+    </div>
+    <div class="form-group">
+        <label for="xai-model">xAI Grok Model</label>
+        <div class="input-with-btn">
+            <input type="text" id="xai-model" placeholder="grok-4.1-fast-non-reasoning">
+            <button class="btn btn-sm" onclick="saveXaiModel()">Save</button>
+        </div>
     </div>
 </div>
 {% endblock %}
@@ -246,7 +255,12 @@
 
     async function saveGeminiModel() {
         const val = document.getElementById('gemini-model').value.trim();
-        if (val) await saveSetting('gemini_model', val);
+        await saveSetting('gemini_model', val);
+    }
+
+    async function saveXaiModel() {
+        const val = document.getElementById('xai-model').value.trim();
+        await saveSetting('xai_model', val);
     }
 
     async function saveSetting(key, value) {
@@ -299,5 +313,6 @@
     document.getElementById('classification-prompt').value = currentSettings.classification_prompt || '';
     document.getElementById('poll-interval').value = currentSettings.poll_interval_minutes || 12;
     document.getElementById('gemini-model').value = currentSettings.gemini_model || 'gemini-2.5-flash';
+    document.getElementById('xai-model').value = currentSettings.xai_model || 'grok-4.1-fast-non-reasoning';
 </script>
 {% endblock %}

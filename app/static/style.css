@@ -230,6 +230,14 @@ textarea { resize: vertical; font-family: monospace; font-size: 0.8rem; }
 
 input[type="color"] { width: 40px; height: 30px; border: 1px solid var(--border); border-radius: 4px; padding: 2px; }
 
+.input-with-btn {
+    display: flex;
+    gap: 0.5rem;
+}
+.input-with-btn input {
+    flex: 1;
+}
+
 .add-row { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
 .add-row input { flex: 1; }
 

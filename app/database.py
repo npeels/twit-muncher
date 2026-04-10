@@ -70,7 +70,9 @@ Rules:
 For each tweet, return:
 {{"id": "<tweet_id>", "category": "<category_key>", "confidence": <0.0-1.0>, "reason": "<brief reason>"}}
 
-Return a JSON array of these objects, nothing else."""
+Return a JSON object with a "classifications" key containing an array of these objects. Nothing else.
+"""
+
 
 
 def generate_classification_prompt(categories: list[dict]) -> str:
@@ -92,6 +94,7 @@ DEFAULT_SETTINGS = {
     "categories": DEFAULT_CATEGORIES,
     "classification_prompt": generate_classification_prompt(DEFAULT_CATEGORIES),
     "gemini_model": "gemini-2.5-flash",
+    "xai_model": "grok-4.1-fast-non-reasoning",
 }
 
 
