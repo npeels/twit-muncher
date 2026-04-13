@@ -94,7 +94,7 @@ DEFAULT_SETTINGS = {
     "categories": DEFAULT_CATEGORIES,
     "classification_prompt": generate_classification_prompt(DEFAULT_CATEGORIES),
     "gemini_model": "gemini-2.5-flash",
-    "xai_model": "grok-4.1-fast-non-reasoning",
+    "xai_model": "grok-4-1-fast-non-reasoning",
 }
 
 

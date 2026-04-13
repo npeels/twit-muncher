@@ -100,7 +100,7 @@
     <div class="form-group">
         <label for="xai-model">xAI Grok Model</label>
         <div class="input-with-btn">
-            <input type="text" id="xai-model" placeholder="grok-4.1-fast-non-reasoning">
+            <input type="text" id="xai-model" placeholder="grok-4-1-fast-non-reasoning">
             <button class="btn btn-sm" onclick="saveXaiModel()">Save</button>
         </div>
     </div>
@@ -313,6 +313,6 @@
     document.getElementById('classification-prompt').value = currentSettings.classification_prompt || '';
     document.getElementById('poll-interval').value = currentSettings.poll_interval_minutes || 12;
     document.getElementById('gemini-model').value = currentSettings.gemini_model || 'gemini-2.5-flash';
-    document.getElementById('xai-model').value = currentSettings.xai_model || 'grok-4.1-fast-non-reasoning';
+    document.getElementById('xai-model').value = currentSettings.xai_model || 'grok-4-1-fast-non-reasoning';
 </script>
 {% endblock %}

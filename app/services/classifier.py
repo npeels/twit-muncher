@@ -23,7 +23,7 @@ async def classify_tweets(tweets: list[dict]):
     prompt = await get_setting("classification_prompt")
 
     if settings.xai_api_key:
-        model = await get_setting("xai_model") or "grok-4.1-fast-non-reasoning"
+        model = await get_setting("xai_model") or "grok-4-1-fast-non-reasoning"
         # Process in batches
         for i in range(0, len(tweets), BATCH_SIZE):
             batch = tweets[i : i + BATCH_SIZE]
@@ -66,6 +66,7 @@ async def _classify_batch_xai(
 
     try:
         async with httpx.AsyncClient(timeout=60.0) as client:
+            logger.info(f"Calling xAI API with model {model} for batch of {len(batch)} tweets")
             response = await client.post(
                 "https://api.x.ai/v1/chat/completions",
                 headers={
@@ -80,20 +81,35 @@ async def _classify_batch_xai(
                     ],
                     "temperature": 0.1,
                     "response_format": {"type": "json_object"},
+                    "max_tokens": 4096,
                 },
             )
+            if response.status_code != 200:
+                logger.error(f"xAI API error: {response.status_code} - {response.text}")
             response.raise_for_status()
             data = response.json()
             text = data["choices"][0]["message"]["content"]
             
             # Some models might return the json block with backticks or wrap it differently
             text = text.strip()
-            if text.startswith("```json"):
-                text = text[7:-3].strip()
-            elif text.startswith("```"):
-                text = text[3:-3].strip()
+            if "```json" in text:
+                text = text.split("```json")[1].split("```")[0].strip()
+            elif "```" in text:
+                text = text.split("```")[1].split("```")[0].strip()
 
-            results = json.loads(text)
+            try:
+                results = json.loads(text)
+            except json.JSONDecodeError as je:
+                # Try a very aggressive cleanup if first load fails
+                logger.warning(f"Initial JSON parse failed: {je}. Attempting cleanup...")
+                # Find the first { and last }
+                start = text.find("{")
+                end = text.rfind("}")
+                if start != -1 and end != -1:
+                    text = text[start : end + 1]
+                    results = json.loads(text)
+                else:
+                    raise
 
             if isinstance(results, dict) and "classifications" in results:
                 results = results["classifications"]
@@ -102,9 +118,10 @@ async def _classify_batch_xai(
             elif isinstance(results, list):
                 pass
             else:
-                logger.warning(f"Unexpected JSON structure from xAI: {text}")
+                logger.warning(f"Unexpected JSON structure from xAI: {text[:200]}")
                 return
 
+            logger.info(f"xAI returned {len(results)} classifications")
             for item in results:
                 tweet_id = item.get("id")
                 category = item.get("category")
