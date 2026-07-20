@@ -66,7 +66,7 @@
 
 <div id="tab-prompt" class="tab-panel">
     <h2>Classification Prompt</h2>
-    <p class="help-text">This prompt is sent to Gemini for tweet classification. Edit to fine-tune behavior.</p>
+    <p class="help-text">This prompt is sent to the OpenRouter model for tweet classification. Edit to fine-tune behavior.</p>
     <textarea id="classification-prompt" rows="20"></textarea>
     <div class="btn-group">
         <button class="btn" onclick="savePrompt()">Save Prompt</button>
@@ -91,17 +91,11 @@
         <button class="btn btn-sm" onclick="savePollInterval()">Save</button>
     </div>
     <div class="form-group">
-        <label for="gemini-model">Gemini Model</label>
+        <label for="openrouter-model">OpenRouter Model</label>
+        <p class="help-text">OpenRouter model slug used for tweet classification.</p>
         <div class="input-with-btn">
-            <input type="text" id="gemini-model" placeholder="gemini-2.5-flash">
-            <button class="btn btn-sm" onclick="saveGeminiModel()">Save</button>
-        </div>
-    </div>
-    <div class="form-group">
-        <label for="xai-model">xAI Grok Model</label>
-        <div class="input-with-btn">
-            <input type="text" id="xai-model" placeholder="grok-4-1-fast-non-reasoning">
-            <button class="btn btn-sm" onclick="saveXaiModel()">Save</button>
+            <input type="text" id="openrouter-model" placeholder="meta-llama/llama-3.1-8b-instruct">
+            <button class="btn btn-sm" onclick="saveOpenrouterModel()">Save</button>
         </div>
     </div>
 </div>
@@ -253,14 +247,9 @@
         if (val > 0) await saveSetting('poll_interval_minutes', val);
     }
 
-    async function saveGeminiModel() {
-        const val = document.getElementById('gemini-model').value.trim();
-        await saveSetting('gemini_model', val);
-    }
-
-    async function saveXaiModel() {
-        const val = document.getElementById('xai-model').value.trim();
-        await saveSetting('xai_model', val);
+    async function saveOpenrouterModel() {
+        const val = document.getElementById('openrouter-model').value.trim();
+        await saveSetting('openrouter_model', val);
     }
 
     async function saveSetting(key, value) {
@@ -312,7 +301,6 @@
     renderListIds();
     document.getElementById('classification-prompt').value = currentSettings.classification_prompt || '';
     document.getElementById('poll-interval').value = currentSettings.poll_interval_minutes || 12;
-    document.getElementById('gemini-model').value = currentSettings.gemini_model || 'gemini-2.5-flash';
-    document.getElementById('xai-model').value = currentSettings.xai_model || 'grok-4-1-fast-non-reasoning';
+    document.getElementById('openrouter-model').value = currentSettings.openrouter_model || 'meta-llama/llama-3.1-8b-instruct';
 </script>
 {% endblock %}

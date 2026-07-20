@@ -93,8 +93,7 @@ DEFAULT_SETTINGS = {
     "poll_interval_minutes": 12,
     "categories": DEFAULT_CATEGORIES,
     "classification_prompt": generate_classification_prompt(DEFAULT_CATEGORIES),
-    "gemini_model": "gemini-2.5-flash",
-    "xai_model": "grok-4-1-fast-non-reasoning",
+    "openrouter_model": "meta-llama/llama-3.1-8b-instruct",
 }
 
 

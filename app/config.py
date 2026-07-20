@@ -1,9 +1,12 @@
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    gemini_api_key: str = ""
-    xai_api_key: str = ""
+    openrouter_api_key: str = Field(
+        default="",
+        validation_alias=AliasChoices("OPENROUTER_API_KEY", "OPENROUTER_API"),
+    )
     rsshub_base_url: str = "https://rsshub.app"
     database_path: str = "data/twit-muncher.db"
     session_secret: str = "change-me-to-a-random-string"
